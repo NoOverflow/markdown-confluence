@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { loadConfig } from "./config.js";
 import { ConfluenceUploader } from "./uploader.js";
+import { ConfluenceImporter } from "./importer.js";
 import { convertMarkdown } from "./converter.js";
 import * as fs from "fs";
 import * as path from "path";
@@ -40,6 +41,39 @@ program
 
       const uploader = new ConfluenceUploader(config);
       await uploader.publish(opts.dryRun ?? false);
+    } catch (err) {
+      console.error("Error:", (err as Error).message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("pull")
+  .description("Import pages from Confluence into the content directory as markdown files")
+  .option("--dry-run", "Print what would be written without creating any files")
+  .option("--base-url <url>", "Confluence base URL (overrides config)")
+  .option("--auth-method <method>", "Auth method: basic, pat, or cookie (overrides config)")
+  .option("--username <username>", "Confluence username / email (overrides config)")
+  .option("--api-token <token>", "API token, PAT, or cookie string (overrides config)")
+  .option("--session-cookie <cookie>", "OIDC/SSO proxy session cookie, sent alongside primary auth (overrides config)")
+  .option("--space-key <key>", "Confluence space key (overrides config)")
+  .option("--parent-page-id <id>", "Parent page ID to import from (overrides config)")
+  .option("--content-dir <dir>", "Path to output directory (overrides config)")
+  .action(async (opts) => {
+    try {
+      const config = loadConfig({
+        baseUrl: opts.baseUrl,
+        authMethod: opts.authMethod,
+        username: opts.username,
+        apiToken: opts.apiToken,
+        sessionCookie: opts.sessionCookie,
+        spaceKey: opts.spaceKey,
+        parentPageId: opts.parentPageId,
+        contentDir: opts.contentDir,
+      });
+
+      const importer = new ConfluenceImporter(config);
+      await importer.pull(opts.dryRun ?? false);
     } catch (err) {
       console.error("Error:", (err as Error).message);
       process.exit(1);

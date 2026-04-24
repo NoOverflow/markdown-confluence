@@ -32,6 +32,8 @@ export interface ConversionResult {
   body: string;
   /** Any extra frontmatter fields from the markdown file */
   frontmatter: Record<string, unknown>;
+  /** Relative paths to local files referenced as images in the markdown */
+  localAssets: string[];
 }
 
 export function convertMarkdown(
@@ -50,7 +52,27 @@ export function convertMarkdown(
     title,
     body: serializeNode(tree),
     frontmatter: frontmatter as Record<string, unknown>,
+    localAssets: collectLocalImages(tree),
   };
+}
+
+function collectLocalImages(tree: Root): string[] {
+  const assets: string[] = [];
+
+  function walk(node: Node): void {
+    if (node.type === "image") {
+      const url = (node as Image).url;
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        assets.push(url);
+      }
+    }
+    if ("children" in node) {
+      (node as Parent).children.forEach(walk);
+    }
+  }
+
+  walk(tree);
+  return assets;
 }
 
 // ---------------------------------------------------------------------------

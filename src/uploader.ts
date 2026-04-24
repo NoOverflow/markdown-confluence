@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { Config } from "./config.js";
 import { convertMarkdown } from "./converter.js";
+import { buildAuthHeaders, authErrorMessage } from "./auth.js";
 
 export interface PageNode {
   /** Absolute path to the file or folder */
@@ -41,15 +42,7 @@ export class ConfluenceUploader {
     this.client.interceptors.response.use(undefined, (err) => {
       const status: number | undefined = err?.response?.status;
       if (status === 401 || status === 403 || (status && status >= 300 && status < 400)) {
-        const hint =
-          config.authMethod === "basic"
-            ? `Check your username and apiToken. For SSO-protected instances, try authMethod "pat" or "cookie".`
-            : config.authMethod === "pat"
-            ? `Check that your Personal Access Token is valid and not expired.`
-            : `Your session cookies may have expired. Log in again and update apiToken in the config.`;
-        throw new Error(
-          `Authentication failed (HTTP ${status ?? "redirect"}).\n${hint}`
-        );
+        throw new Error(authErrorMessage(config, status));
       }
       throw err;
     });
@@ -104,15 +97,26 @@ export class ConfluenceUploader {
 
     if (node.markdownFile) {
       const raw = fs.readFileSync(node.markdownFile, "utf-8");
-      const { title, body } = convertMarkdown(raw, node.title);
+      const { title, body, localAssets } = convertMarkdown(raw, node.title);
       node.title = title;
+
+      const markdownDir = path.dirname(node.markdownFile);
+      const assetPaths = localAssets
+        .map((rel) => path.resolve(markdownDir, rel))
+        .filter(fs.existsSync);
 
       if (dryRun) {
         console.log(`[dry-run] Would publish: "${title}" (parent: ${parentId})`);
+        if (assetPaths.length) {
+          console.log(`[dry-run] Would upload ${assetPaths.length} asset(s): ${assetPaths.map((p) => path.basename(p)).join(", ")}`);
+        }
         pageId = `dry-run-${node.title}`;
       } else {
         pageId = await this.upsertPage(title, body, parentId);
         console.log(`Published: "${title}" → page ID ${pageId}`);
+        if (assetPaths.length) {
+          await this.uploadAttachments(pageId, assetPaths);
+        }
       }
     } else {
       // Folder node — create a blank container page
@@ -212,6 +216,55 @@ export class ConfluenceUploader {
       version: { number: currentVersion + 1 },
     });
   }
+
+  private async uploadAttachments(
+    pageId: string,
+    assetPaths: string[]
+  ): Promise<void> {
+    for (const filePath of assetPaths) {
+      const filename = path.basename(filePath);
+      const existingId = await this.findAttachment(pageId, filename);
+
+      const formData = new FormData();
+      const fileBuffer = fs.readFileSync(filePath);
+      formData.append(
+        "file",
+        new Blob([fileBuffer]),
+        filename
+      );
+
+      // X-Atlassian-Token bypasses Confluence's CSRF check on attachment endpoints
+      const attachmentHeaders = { "X-Atlassian-Token": "no-check" };
+
+      if (existingId) {
+        await this.client.post(
+          `${this.apiBase}/content/${pageId}/child/attachment/${existingId}/data`,
+          formData,
+          { headers: attachmentHeaders }
+        );
+        console.log(`  Updated attachment: ${filename}`);
+      } else {
+        await this.client.post(
+          `${this.apiBase}/content/${pageId}/child/attachment`,
+          formData,
+          { headers: attachmentHeaders }
+        );
+        console.log(`  Uploaded attachment: ${filename}`);
+      }
+    }
+  }
+
+  private async findAttachment(
+    pageId: string,
+    filename: string
+  ): Promise<string | null> {
+    const response = await this.client.get(
+      `${this.apiBase}/content/${pageId}/child/attachment`,
+      { params: { filename } }
+    );
+    const results: Array<{ id: string }> = response.data?.results ?? [];
+    return results.length > 0 ? results[0].id : null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -273,42 +326,6 @@ function titleFromFilename(name: string): string {
   return name
     .replace(/[-_]/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-// ---------------------------------------------------------------------------
-// Auth helpers
-// ---------------------------------------------------------------------------
-
-function buildAuthHeaders(config: Config): Record<string, string> {
-  const headers: Record<string, string> = {};
-
-  switch (config.authMethod) {
-    case "basic": {
-      const encoded = Buffer.from(
-        `${config.username}:${config.apiToken}`
-      ).toString("base64");
-      headers["Authorization"] = `Basic ${encoded}`;
-      break;
-    }
-    case "pat":
-      headers["Authorization"] = `Bearer ${config.apiToken}`;
-      break;
-    case "cookie":
-      headers["Cookie"] = config.apiToken;
-      break;
-  }
-
-  // Merge the OIDC/SSO proxy session cookie when present.
-  // This lets PAT or Basic auth handle Confluence while the session cookie
-  // satisfies the proxy sitting in front of it.
-  if (config.sessionCookie) {
-    const existing = headers["Cookie"];
-    headers["Cookie"] = existing
-      ? `${existing}; ${config.sessionCookie}`
-      : config.sessionCookie;
-  }
-
-  return headers;
 }
 
 // ---------------------------------------------------------------------------
