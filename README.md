@@ -41,6 +41,69 @@ node dist/cli.js publish --content-dir ./docs --space-key ENG
 
 Run `node dist/cli.js publish --help` for the full list of flags.
 
+## Docker
+
+A pre-built image is published to GitHub Container Registry on every push to `master` and on every version tag.
+
+```bash
+docker pull ghcr.io/nooverflow/markdown-confluence:master
+```
+
+### Running with Docker
+
+Mount your `content/` directory to `/content` inside the container, and pass configuration via environment variables or by mounting a config file.
+
+**Using environment variables:**
+
+```bash
+docker run --rm \
+  -v $(pwd)/content:/content \
+  -e CONFLUENCE_BASE_URL=https://confluence.yourcompany.com \
+  -e CONFLUENCE_AUTH_METHOD=pat \
+  -e CONFLUENCE_API_TOKEN=your-personal-access-token \
+  -e CONFLUENCE_SESSION_COOKIE="AWSELBAuthSessionCookie-0=<value>; JSESSIONID=<value>" \
+  -e CONFLUENCE_SPACE_KEY=ENG \
+  -e CONFLUENCE_PARENT_PAGE_ID=123456789 \
+  -e CONFLUENCE_CONTENT_DIR=/content \
+  ghcr.io/nooverflow/markdown-confluence:master
+```
+
+**Using a config file:**
+
+```bash
+docker run --rm \
+  -v $(pwd)/content:/content \
+  -v $(pwd)/.markdown-confluence.json:/app/.markdown-confluence.json:ro \
+  ghcr.io/nooverflow/markdown-confluence:master
+```
+
+> Set `"contentDir": "/content"` in your config file when using the mounted path.
+
+**Dry run:**
+
+```bash
+docker run --rm \
+  -v $(pwd)/content:/content \
+  -v $(pwd)/.markdown-confluence.json:/app/.markdown-confluence.json:ro \
+  ghcr.io/nooverflow/markdown-confluence:master publish --dry-run
+```
+
+### Building locally
+
+```bash
+docker build -t markdown-confluence .
+docker run --rm -v $(pwd)/content:/content ... markdown-confluence
+```
+
+### CI/CD image tags
+
+| Tag | When it's built |
+|-----|----------------|
+| `master` | Every push to the `master` branch |
+| `v1.2.3` | On a `v1.2.3` git tag |
+| `1.2` | On a `v1.2.x` git tag (tracks the latest patch) |
+| `sha-<commit>` | Every push, tagged with the short commit SHA |
+
 ## Content structure
 
 Organise your markdown files under the `content/` directory (or whichever path you set in `contentDir`). Folders become parent pages; `.md` files become child pages.
