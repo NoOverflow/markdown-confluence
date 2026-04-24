@@ -1,0 +1,9 @@
+{
+  "baseUrl": "https://confluence.yourcompany.com",
+  "authMethod": "pat",
+  "apiToken": "your-personal-access-token",
+  "sessionCookie": "AWSELBAuthSessionCookie-0=<value>; AWSELBAuthSessionCookie-1=<value>; JSESSIONID=<value>",
+  "spaceKey": "ENG",
+  "parentPageId": "123456789",
+  "contentDir": "./content"
+}

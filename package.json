@@ -1,0 +1,31 @@
+{
+  "name": "markdown-confluence",
+  "version": "0.1.0",
+  "description": "Convert markdown files to Confluence Storage Format and publish them",
+  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "markdown-confluence": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node --loader ts-node/esm src/cli.ts",
+    "dev": "node --loader ts-node/esm src/cli.ts"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "commander": "^12.1.0",
+    "glob": "^10.4.2",
+    "gray-matter": "^4.0.3",
+    "mdast-util-gfm": "^3.0.0",
+    "micromark-extension-gfm": "^3.0.0",
+    "remark-gfm": "^4.0.0",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

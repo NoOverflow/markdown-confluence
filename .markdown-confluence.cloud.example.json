@@ -1,0 +1,9 @@
+{
+  "baseUrl": "https://yourorg.atlassian.net",
+  "authMethod": "basic",
+  "username": "your@email.com",
+  "apiToken": "your-api-token",
+  "spaceKey": "ENG",
+  "parentPageId": "123456789",
+  "contentDir": "./content"
+}

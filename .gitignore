@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.markdown-confluence.json
+!.markdown-confluence.*.example.json
+*.env

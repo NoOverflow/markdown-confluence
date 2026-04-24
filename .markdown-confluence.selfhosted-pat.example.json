@@ -1,0 +1,8 @@
+{
+  "baseUrl": "https://confluence.yourcompany.com",
+  "authMethod": "pat",
+  "apiToken": "your-personal-access-token",
+  "spaceKey": "ENG",
+  "parentPageId": "123456789",
+  "contentDir": "./content"
+}
