@@ -233,8 +233,12 @@ export class ConfluenceUploader {
         filename
       );
 
-      // X-Atlassian-Token bypasses Confluence's CSRF check on attachment endpoints
-      const attachmentHeaders = { "X-Atlassian-Token": "no-check" };
+      // Unset Content-Type so axios lets FormData set it with the correct
+      // multipart boundary. X-Atlassian-Token bypasses Confluence's CSRF check.
+      const attachmentHeaders = {
+        "Content-Type": undefined,
+        "X-Atlassian-Token": "no-check",
+      };
 
       if (existingId) {
         await this.client.post(
