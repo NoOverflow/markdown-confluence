@@ -2,6 +2,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import matter from "gray-matter";
+import { preprocessXmlMacros } from "./xml-macro-preprocessor.js";
 import type {
   Node,
   Parent,
@@ -41,16 +42,17 @@ export function convertMarkdown(
   fallbackTitle: string
 ): ConversionResult {
   const { data: frontmatter, content } = matter(rawMarkdown);
+  const { processed, restore } = preprocessXmlMacros(content);
 
   const processor = unified().use(remarkParse).use(remarkGfm);
-  const tree = processor.parse(content) as Root;
+  const tree = processor.parse(processed) as Root;
 
   const title =
     typeof frontmatter.title === "string" ? frontmatter.title : fallbackTitle;
 
   return {
     title,
-    body: serializeNode(tree),
+    body: restore(serializeNode(tree)),
     frontmatter: frontmatter as Record<string, unknown>,
     localAssets: collectLocalImages(tree),
   };
